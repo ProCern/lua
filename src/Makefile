@@ -7,12 +7,13 @@
 PLAT= guess
 
 CC= gcc -std=gnu99
-CFLAGS= -O2 -Wall -Wextra $(SYSCFLAGS) $(MYCFLAGS)
+CFLAGS= -O2 -Wall -Wextra -fPIC $(SYSCFLAGS) $(MYCFLAGS) -DLUAI_FUNC=extern -DLUAI_DDEF= '-DLUAI_DDEC(dec)=extern dec'
 LDFLAGS= $(SYSLDFLAGS) $(MYLDFLAGS)
 LIBS= -lm $(SYSLIBS) $(MYLIBS)
 
-AR= ar rcu
-RANLIB= ranlib
+LDSO= $(CC) -shared -o
+STRIP= strip
+STRIP_LIB= strip --strip-unneeded
 RM= rm -f
 UNAME= uname
 
@@ -32,7 +33,7 @@ CMCFLAGS=
 
 PLATS= guess aix bsd c89 freebsd generic ios linux macosx mingw posix solaris
 
-LUA_A=	liblua.a
+LUA_SO=	liblua.so
 CORE_O=	lapi.o lcode.o lctype.o ldebug.o ldo.o ldump.o lfunc.o lgc.o llex.o lmem.o lobject.o lopcodes.o lparser.o lstate.o lstring.o ltable.o ltm.o lundump.o lvm.o lzio.o
 LIB_O=	lauxlib.o lbaselib.o lcorolib.o ldblib.o liolib.o lmathlib.o loadlib.o loslib.o lstrlib.o ltablib.o lutf8lib.o linit.o
 BASE_O= $(CORE_O) $(LIB_O) $(MYOBJS)
@@ -44,8 +45,8 @@ LUAC_T=	luac
 LUAC_O=	luac.o
 
 ALL_O= $(BASE_O) $(LUA_O) $(LUAC_O)
-ALL_T= $(LUA_A) $(LUA_T) $(LUAC_T)
-ALL_A= $(LUA_A)
+ALL_T= $(LUA_SO) $(LUA_T) $(LUAC_T)
+ALL_SO= $(LUA_SO)
 
 # Targets start here.
 default: $(PLAT)
@@ -54,17 +55,19 @@ all:	$(ALL_T)
 
 o:	$(ALL_O)
 
-a:	$(ALL_A)
+so:	$(ALL_SO)
 
-$(LUA_A): $(BASE_O)
-	$(AR) $@ $(BASE_O)
-	$(RANLIB) $@
+$(LUA_SO): $(BASE_O)
+	$(LDSO) $@ $(LDFLAGS) $(BASE_O) $(LIBS)
+	$(STRIP_LIB) $@
 
-$(LUA_T): $(LUA_O) $(LUA_A)
-	$(CC) -o $@ $(LDFLAGS) $(LUA_O) $(LUA_A) $(LIBS)
+$(LUA_T): $(LUA_O)
+	$(CC) -o $@ $(LDFLAGS) $(LUA_O) -llua $(LIBS)
+	$(STRIP) $@
 
-$(LUAC_T): $(LUAC_O) $(LUA_A)
-	$(CC) -o $@ $(LDFLAGS) $(LUAC_O) $(LUA_A) $(LIBS)
+$(LUAC_T): $(LUAC_O)
+	$(CC) -o $@ $(LDFLAGS) $(LUAC_O) -llua $(LIBS)
+	$(STRIP) $@
 
 test:
 	./$(LUA_T) -v
@@ -127,9 +130,9 @@ Darwin macos macosx:
 	$(MAKE) $(ALL) SYSCFLAGS="-DLUA_USE_MACOSX -DLUA_USE_READLINE" SYSLIBS="-lreadline"
 
 mingw:
-	$(MAKE) "LUA_A=lua55.dll" "LUA_T=lua.exe" \
+	$(MAKE) "LUA_SO=lua55.dll" "LUA_T=lua.exe" \
 	"AR=$(CC) -shared -o" "RANLIB=strip --strip-unneeded" \
-	"SYSCFLAGS=-DLUA_BUILD_AS_DLL" "SYSLIBS=" "SYSLDFLAGS=-s" lua.exe
+	"SYSCFLAGS=-DLUA_BUILD_SOS_DLL" "SYSLIBS=" "SYSLDFLAGS=-s" lua.exe
 	$(MAKE) "LUAC_T=luac.exe" luac.exe
 
 posix:
